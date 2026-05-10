@@ -1,0 +1,16 @@
+feature,mean_abs_shap
+estimated_salary,0.01369868
+calls_to_data_ratio,0.011086454
+salary_per_dependent,0.010055146
+calls_made,0.008486759
+data_used,0.0061969864
+total_usage,0.0055915266
+state_enc,0.0049826056
+tenure_days,0.004800745
+age,0.0038893623
+telecom_partner_enc,0.0034425247
+sms_sent,0.0032368847
+city_enc,0.0030800833
+gender_enc,0.0030632
+num_dependents,0.0018320171
+age_group_enc,0.00065566326
