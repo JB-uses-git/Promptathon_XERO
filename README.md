@@ -1,7 +1,7 @@
 <p align="center">
-  <h1 align="center">🔮 AMC Customer Churn Prediction (Ensemble Edition)</h1>
+  <h1 align="center">AMC Customer Churn Prediction (Ensemble Edition)</h1>
   <p align="center">
-    <strong>Predict who will leave and WHEN — using Hybrid Survival Analysis.</strong>
+    <strong>Predict who will churn and WHEN -- using Hybrid Survival Analysis.</strong>
   </p>
   <p align="center">
     <img src="https://img.shields.io/badge/Python-3.10+-blue?logo=python&logoColor=white" alt="Python"/>
@@ -13,214 +13,139 @@
 
 ---
 
-## 📌 What is This?
+## What is This?
 
-This project builds a **state-of-the-art ensemble pipeline** to predict customer churn. We combine **CatBoost** (for maximum binary accuracy) with a **WTTE (Weibull Time-To-Event)** survival model to predict not just *if* a customer will churn, but *when* (expected lifespan).
+This branch extends the base churn prediction pipeline with a **WTTE (Weibull Time-To-Event) Survival Model** and blends it into a **Hybrid Ensemble** with CatBoost. Instead of just predicting *if* a customer will churn, we now predict *when* (expected lifespan in months).
 
-> **TL;DR:** We've moved beyond simple classification. Our hybrid model blends gradient boosting with survival analysis to provide actionable "Months to Churn" forecasts alongside high-precision risk scores.
-
----
-
-## 🏗️ Project Structure
-
-```
-AMC-master/
-│
-├── src/                          # All source code
-│   ├── data_processing.py        # Load, clean, engineer features, split data
-│   ├── train.py                  # Train all 4 models (heuristic → CatBoost)
-│   ├── evaluate.py               # Full evaluation suite with PRD gates
-│   ├── explainability.py         # SHAP global + local explanations
-│   └── plot_heatmap.py           # Correlation heatmap visualization
-│
-├── artifacts/                    # Saved models, splits, and results
-│   ├── model_heuristic.joblib
-│   ├── model_logistic.joblib
-│   ├── model_xgboost.joblib
-│   ├── model_catboost.joblib
-│   ├── splits.joblib             # Train/Val/Test data splits
-│   ├── evaluation_leaderboard.csv
-│   ├── shap_feature_importance.csv
-│   └── plots/                    # All generated visualizations
-│       ├── shap_global_bar.png
-│       ├── shap_beeswarm.png
-│       ├── shap_waterfall_high_risk.png
-│       ├── shap_waterfall_low_risk.png
-│       └── heatmap_correlation.png
-│
-├── synthetic_customer_churn_100k.csv   # Main dataset (100K rows)
-├── telecom_churn.csv                   # Alternate telecom dataset
-├── PRD.md                              # Full Product Requirements Document
-├── kek.ipynb                           # EDA notebook
-├── xg.ipynb                            # XGBoost experimentation notebook
-└── eda_*.py                            # Exploratory analysis scripts
-```
+> **TL;DR:** CatBoost handles accuracy (ROC-AUC 0.80), WTTE adds temporal insight ("this customer has ~3 months left"), and the Ensemble blends both for the best of both worlds.
 
 ---
 
-## 🧠 How It Works
+## Model Leaderboard (Synthetic 100K Dataset)
 
-The pipeline follows a **champion–challenger** strategy:
-
-```
-Raw Data → Clean & Engineer Features → Train 4 Models → Evaluate → Explain with SHAP
-```
-
-### Step-by-step:
-
-| Step | What Happens | Script |
-|------|-------------|--------|
-| **1. Data Processing** | Load 100K rows, clean anomalies, engineer 15+ features, stratified 70/15/15 split | `data_processing.py` |
-| **2. Training** | Train Heuristic, Logistic Regression, XGBoost (calibrated), CatBoost (calibrated) | `train.py` |
-| **3. Evaluation** | Compute ROC-AUC, PR-AUC, Lift, Precision/Recall@10%, ECE, Calibration, Brier Score | `evaluate.py` |
-| **4. Explainability** | SHAP bar plots, beeswarm, waterfall plots for high/low risk users | `explainability.py` |
-
----
-
-## 📊 Model Leaderboard
-
-All models evaluated on the **held-out test set** (15% of data, never seen during training):
+### Binary Classification Models (from `main` branch)
 
 | Model | ROC-AUC | PR-AUC | Top-Decile Lift | Precision@10% | Recall@10% | ECE | Brier |
-|-------|---------|--------|----------------|---------------|------------|-----|-------|
+|-------|---------|--------|-----------------|---------------|------------|-----|-------|
 | Heuristic | 0.7745 | 0.6012 | 2.20 | 72.8% | 22.0% | 0.0806 | 0.1762 |
 | Logistic | 0.7929 | 0.6529 | 2.23 | 74.0% | 22.3% | 0.1198 | 0.1830 |
-| **XGBoost** | **0.7999** | **0.6681** | **2.33** | **77.2%** | **23.3%** | **0.0470** | **0.1631** |
-| **CatBoost** 🏆 | **0.8035** | **0.6710** | **2.34** | **77.5%** | **23.4%** | **0.0393** | **0.1611** |
+| XGBoost | 0.7999 | 0.6681 | 2.33 | 77.2% | 23.3% | 0.0470 | 0.1631 |
+| **CatBoost** | **0.8035** | **0.6710** | **2.34** | **77.5%** | **23.4%** | **0.0393** | **0.1611** |
 
-> 🏆 **CatBoost wins** with the best ROC-AUC (0.8035), lowest calibration error (ECE = 0.039), and lowest Brier score.
+### WTTE Survival Model (this branch)
 
-### PRD Gate Results
+| Model | ROC-AUC | PR-AUC | Top-Decile Lift | ECE | Brier |
+|-------|---------|--------|-----------------|-----|-------|
+| WTTE-Survival | 0.7280 | 0.5522 | 2.09 | 0.2343 | 0.2624 |
 
-| Gate | Threshold | XGBoost | CatBoost |
-|------|-----------|---------|----------|
-| ROC-AUC ≥ 0.75 | ✅ | ✅ PASS | ✅ PASS |
-| PR-AUC ≥ 0.40 | ✅ | ✅ PASS | ✅ PASS |
-| ECE ≤ 0.05 | ✅ | ✅ PASS | ✅ PASS |
-| Lift ≥ 2.5 | ❌ | ❌ FAIL | ❌ FAIL |
+### Ensemble Comparison (this branch)
+
+| Model | ROC-AUC | PR-AUC | Top-Decile Lift | Brier |
+|-------|---------|--------|-----------------|-------|
+| CatBoost (solo) | 0.8035 | 0.6710 | 2.3396 | 0.1611 |
+| WTTE (solo) | 0.7229 | 0.5458 | 2.0740 | 0.2637 |
+| **Simple Blend (95%CB+5%WTTE)** | **0.8034** | **0.6711** | **2.3436** | **0.1612** |
+| Stacked Ensemble (LR) | 0.8035 | 0.6710 | 2.3416 | 0.1648 |
+
+> The ensemble slightly improves **Top-Decile Lift** (2.34 -> 2.34) and **PR-AUC**. The real value of WTTE is the temporal "expected lifespan" prediction that CatBoost cannot provide.
 
 ---
 
-## 🔍 SHAP Explainability
+## Evaluation Plots
 
-We use **SHAP (SHapley Additive exPlanations)** to understand what drives each prediction.
-
-### Global Feature Importance
-> *Which features matter most across all predictions?*
-
+### ROC Curve Comparison
 <p align="center">
-  <img src="artifacts/plots/shap_global_bar.png" width="700" alt="SHAP Global Feature Importance"/>
+  <img src="artifacts/plots/wtte/roc_comparison.png" width="700" alt="ROC Comparison"/>
 </p>
 
-**Top 5 drivers of churn:**
-1. `estimated_salary` — salary level strongly impacts retention
-2. `calls_to_data_ratio` — imbalanced usage patterns signal risk
-3. `salary_per_dependent` — financial burden indicator
-4. `calls_made` — engagement level
-5. `data_used` — service utilization depth
-
-### Beeswarm Plot
-> *How does each feature push predictions toward churn (right) or retention (left)?*
-
+### Precision-Recall Curve
 <p align="center">
-  <img src="artifacts/plots/shap_beeswarm.png" width="700" alt="SHAP Beeswarm Plot"/>
+  <img src="artifacts/plots/wtte/pr_comparison.png" width="700" alt="PR Comparison"/>
 </p>
 
-### Individual Predictions
-
-**High-Risk Customer** — see exactly *why* the model flagged them:
-
+### Calibration Plot
 <p align="center">
-  <img src="artifacts/plots/shap_waterfall_high_risk.png" width="700" alt="High Risk Waterfall"/>
+  <img src="artifacts/plots/wtte/calibration_comparison.png" width="700" alt="Calibration"/>
 </p>
 
-**Low-Risk Customer** — protective factors clearly visible:
-
+### WTTE Risk Distribution
 <p align="center">
-  <img src="artifacts/plots/shap_waterfall_low_risk.png" width="700" alt="Low Risk Waterfall"/>
-</p>
-
-### Correlation Heatmap
-
-<p align="center">
-  <img src="artifacts/plots/heatmap_correlation.png" width="600" alt="Feature Correlation Heatmap"/>
+  <img src="artifacts/plots/wtte/risk_distribution_wtte.png" width="700" alt="Risk Distribution"/>
 </p>
 
 ---
 
-## ⚙️ Feature Engineering
+## How the Ensemble Works
 
-We engineer **15+ features** from the raw data to capture different aspects of churn risk:
-
-| Feature Group | Examples | Why It Matters |
-|--------------|----------|---------------|
-| **Tenure** | `tenure_years`, `is_new_customer`, `tenure_bucket` | New customers churn 64% more |
-| **Charges** | `avg_charge_per_month`, `is_high_spender`, `charges_deviation` | High spenders (>$120/mo) churn at 52% |
-| **Interactions** | `mtm_high_charges`, `mtm_new_customer`, `mtm_new_high` | Month-to-month + new + expensive = highest risk |
-| **Demographics** | `age_group`, encoded categoricals | Segment-specific behavior |
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-```bash
-pip install pandas numpy scikit-learn xgboost catboost shap matplotlib joblib
 ```
-
-### Run the Full Pipeline
-```bash
-# Step 1: Process data and create splits
-python src/data_processing.py
-
-# Step 2: Train all models
-python src/train.py
-
-# Step 3: Evaluate on test set
-python src/evaluate.py
-
-# Step 4: Generate SHAP explanations
-python src/explainability.py
-```
-
-### Or run everything in one go:
-```bash
-python src/data_processing.py && python src/train.py && python src/evaluate.py && python src/explainability.py
+Customer Features
+       |
+       v
+  +----------+          +----------+
+  | CatBoost |          |   WTTE   |
+  | (Binary) |          | (Weibull)|
+  +----------+          +----------+
+       |                      |
+  Churn Prob (0-1)     Alpha (expected months)
+       |                Beta (confidence)
+       v                      v
+  +-------------------------------+
+  |    Weighted Ensemble Blend    |
+  |   95% CatBoost + 5% WTTE     |
+  +-------------------------------+
+       |                      |
+  Risk Score            Expected Lifespan
+  (for ranking)         (for action timing)
 ```
 
 ---
 
-## 📈 Key Takeaways
+## Quick Start
 
-1. **CatBoost is the champion** — best overall performance with excellent calibration
-2. **Even simple heuristics work** — rule-based model gets ROC-AUC 0.77, proving the signal is real
-3. **Salary and usage patterns** are the strongest churn predictors
-4. **Month-to-month contracts** with high charges and short tenure = highest churn risk segment
-5. **Calibration matters** — XGBoost and CatBoost both pass the ECE ≤ 0.05 gate, meaning their predicted probabilities are trustworthy
+```bash
+# Install dependencies
+pip install pandas numpy scikit-learn xgboost catboost tensorflow keras matplotlib joblib
+
+# Train WTTE survival model
+python train_wtte.py
+
+# Evaluate WTTE vs baseline models
+python evaluate_wtte.py
+
+# Build optimal ensemble
+python build_ensemble.py
+
+# Start the dashboard API
+cd api && uvicorn main:app --port 8001
+
+# Start the frontend
+cd frontend && npm run dev
+```
 
 ---
 
-## 📄 Documentation
+## Key Takeaways
 
-- **[PRD.md](PRD.md)** — Full Product Requirements Document covering data strategy, model strategy, evaluation gates, architecture, A/B testing plan, and delivery roadmap
-- **[kek.ipynb](kek.ipynb)** — Exploratory Data Analysis notebook
-- **[xg.ipynb](xg.ipynb)** — XGBoost experimentation notebook
+1. **CatBoost remains the accuracy champion** -- ROC-AUC 0.8035, lowest Brier score
+2. **WTTE adds the "when" dimension** -- predicts expected customer lifespan in months
+3. **Ensemble barely improves accuracy** -- the 5% WTTE blend adds marginal lift
+4. **The real value is temporal insight** -- dashboard now shows "Expected Lifespan: ~3 months" alongside risk scores
+5. **Survival models need sequential data** -- WTTE on flat/cross-sectional data underperforms; it would shine with monthly snapshots
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Component | Technology |
 |-----------|-----------|
 | Language | Python 3.10+ |
-| ML Framework | scikit-learn, XGBoost, CatBoost |
-| Explainability | SHAP |
-| Data | pandas, numpy |
+| Classification | CatBoost, XGBoost, scikit-learn |
+| Survival Analysis | Keras 3 + Weibull WTTE |
+| Dashboard | React + FastAPI |
 | Visualization | matplotlib |
-| Serialization | joblib |
 
 ---
 
 <p align="center">
-  <sub>Built for the Promptathon Hackathon 🚀</sub>
+  <sub>Built for the Promptathon Hackathon</sub>
 </p>
