@@ -1,23 +1,27 @@
 <p align="center">
-  <h1 align="center">🔮 AMC Customer Churn Prediction (Ensemble Edition)</h1>
+  <h1 align="center">🚀 AMC Dataset Expansion: 7K → 50K</h1>
   <p align="center">
-    <strong>Predict who will leave and WHEN — using Hybrid Survival Analysis.</strong>
+    <strong>Scaling the Telecom Churn Dataset for Superior Model Robustness.</strong>
   </p>
   <p align="center">
-    <img src="https://img.shields.io/badge/Python-3.10+-blue?logo=python&logoColor=white" alt="Python"/>
-    <img src="https://img.shields.io/badge/Ensemble-CatBoost%20%2B%20WTTE-purple" alt="Ensemble"/>
-    <img src="https://img.shields.io/badge/Survival-WTTE--RNN-red" alt="Survival"/>
-    <img src="https://img.shields.io/badge/ROC--AUC-0.80-brightgreen" alt="AUC"/>
+    <img src="https://img.shields.io/badge/Dataset-Telecom%207K-blue" alt="Telecom"/>
+    <img src="https://img.shields.io/badge/Target-50K%20Samples-green" alt="Target"/>
+    <img src="https://img.shields.io/badge/Model-CatBoost%20%2B%20WTTE-purple" alt="Ensemble"/>
   </p>
 </p>
 
 ---
 
-## 📌 What is This?
+## 📌 Dataset Expansion Plan
 
-This project builds a **state-of-the-art ensemble pipeline** to predict customer churn. We combine **CatBoost** (for maximum binary accuracy) with a **WTTE (Weibull Time-To-Event)** survival model to predict not just *if* a customer will churn, but *when* (expected lifespan).
+This branch focuses on scaling our core data assets. We are starting with the **7,043 sample Telecom dataset** (`telecom_churn.csv`) and implementing a synthetic expansion strategy to reach **50,000 high-fidelity samples**.
 
-> **TL;DR:** We've moved beyond simple classification. Our hybrid model blends gradient boosting with survival analysis to provide actionable "Months to Churn" forecasts alongside high-precision risk scores.
+### 🛠️ The Strategy:
+- **Seed Data:** Use the original 7k Telecom dataset to capture real-world feature distributions.
+- **Expansion:** Apply SMOTE and Variational Autoencoders (VAEs) to synthesize 43k additional records that maintain the statistical properties of the original.
+- **Model Integration:** The expanded dataset will be used to supercharge our **Hybrid Ensemble (CatBoost + WTTE)**, providing more "long-tail" examples for survival analysis.
+
+> **Status:** Documentation Phase. We are currently mapping the feature distributions for the synthetic generation pipeline.
 
 ---
 
