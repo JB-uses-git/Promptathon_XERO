@@ -157,6 +157,9 @@ function App() {
                 <div className="risk-huge" style={{ color: getRiskColor(selectedCustomer.risk_score) }}>
                   {(selectedCustomer.risk_score * 100).toFixed(1)}% Risk
                 </div>
+                <div style={{ marginTop: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                  <strong>RNN Expected Lifespan:</strong> ~{selectedCustomer.expected_days} days
+                </div>
               </div>
 
               <div className="sidebar-section">
