@@ -53,7 +53,7 @@ function App() {
       <header className="header">
         <div className="logo-section">
           <Activity className="logo-icon" size={24} color="var(--accent-color)" />
-          <h1>AMC Retain</h1>
+          <h1>AMC Retain (RNN Extension)</h1>
         </div>
         <div className="user-profile">
           <span>Sarah J. (Sales Lead)</span>
