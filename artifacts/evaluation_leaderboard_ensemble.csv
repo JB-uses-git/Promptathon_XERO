@@ -1,0 +1,5 @@
+Model,ROC-AUC,PR-AUC,Top-Decile Lift,Brier
+CatBoost (solo),0.8035,0.671,2.3396,0.1611
+WTTE (solo),0.7229,0.5458,2.074,0.2637
+Simple Blend (95%CB+5%WTTE),0.8034,0.6711,2.3436,0.1612
+Stacked Ensemble (LR),0.8035,0.671,2.3416,0.1648

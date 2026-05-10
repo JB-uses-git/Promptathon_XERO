@@ -53,7 +53,7 @@ function App() {
       <header className="header">
         <div className="logo-section">
           <Activity className="logo-icon" size={24} color="var(--accent-color)" />
-          <h1>AMC Retain</h1>
+          <h1>AMC Retain (Ensemble: CatBoost + WTTE)</h1>
         </div>
         <div className="user-profile">
           <span>Sarah J. (Sales Lead)</span>
@@ -156,6 +156,9 @@ function App() {
                 <h2>{selectedCustomer.id}</h2>
                 <div className="risk-huge" style={{ color: getRiskColor(selectedCustomer.risk_score) }}>
                   {(selectedCustomer.risk_score * 100).toFixed(1)}% Risk
+                </div>
+                <div style={{ marginTop: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                  <strong>RNN Expected Lifespan:</strong> ~{selectedCustomer.expected_days} days
                 </div>
               </div>
 

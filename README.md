@@ -1,24 +1,27 @@
 <p align="center">
-  <h1 align="center">🔮 AMC Customer Churn Prediction</h1>
+  <h1 align="center">🚀 AMC Dataset Expansion: 7K → 50K</h1>
   <p align="center">
-    <strong>Predict which customers will leave — before they actually do.</strong>
+    <strong>Scaling the Telecom Churn Dataset for Superior Model Robustness.</strong>
   </p>
   <p align="center">
-    <img src="https://img.shields.io/badge/Python-3.10+-blue?logo=python&logoColor=white" alt="Python"/>
-    <img src="https://img.shields.io/badge/XGBoost-Champion-green?logo=xgboost" alt="XGBoost"/>
-    <img src="https://img.shields.io/badge/CatBoost-Challenger-orange?logo=catboost" alt="CatBoost"/>
-    <img src="https://img.shields.io/badge/SHAP-Explainability-red" alt="SHAP"/>
-    <img src="https://img.shields.io/badge/ROC--AUC-0.80-brightgreen" alt="AUC"/>
+    <img src="https://img.shields.io/badge/Dataset-Telecom%207K-blue" alt="Telecom"/>
+    <img src="https://img.shields.io/badge/Target-50K%20Samples-green" alt="Target"/>
+    <img src="https://img.shields.io/badge/Model-CatBoost%20%2B%20WTTE-purple" alt="Ensemble"/>
   </p>
 </p>
 
 ---
 
-## 📌 What is This?
+## 📌 Dataset Expansion Plan
 
-This project builds a **machine learning pipeline to predict customer churn** for an AMC (Annual Maintenance Contract) business. It trains multiple models, evaluates them on real metrics, and explains predictions using SHAP — so you know *who* is likely to churn and *why*.
+This branch focuses on scaling our core data assets. We are starting with the **7,043 sample Telecom dataset** (`telecom_churn.csv`) and implementing a synthetic expansion strategy to reach **50,000 high-fidelity samples**.
 
-> **TL;DR:** We train 4 models (Heuristic → Logistic Regression → XGBoost → CatBoost), compare them on a rigorous leaderboard, and use SHAP to explain every prediction.
+### 🛠️ The Strategy:
+- **Seed Data:** Use the original 7k Telecom dataset to capture real-world feature distributions.
+- **Expansion:** Apply SMOTE and Variational Autoencoders (VAEs) to synthesize 43k additional records that maintain the statistical properties of the original.
+- **Model Integration:** The expanded dataset will be used to supercharge our **Hybrid Ensemble (CatBoost + WTTE)**, providing more "long-tail" examples for survival analysis.
+
+> **Status:** Documentation Phase. We are currently mapping the feature distributions for the synthetic generation pipeline.
 
 ---
 
