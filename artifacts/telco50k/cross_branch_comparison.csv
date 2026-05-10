@@ -1,0 +1,5 @@
+Branch,Dataset,Best Model,ROC-AUC,PR-AUC,Top-Decile Lift,Brier
+main,Synthetic 100K,CatBoost,0.8035,0.671,2.3396,0.1611
+rnn-extension,Synthetic 100K,WTTE-Survival,0.728,0.5522,2.0854,0.2624
+rnn-extension,Synthetic 100K,CatBoost (solo),0.8035,0.671,2.3396,0.1611
+dataset-expansion,Telco 50K (expanded),XGBoost,0.935,0.9298,1.9931,0.1017
