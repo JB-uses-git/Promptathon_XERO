@@ -1,13 +1,12 @@
 <p align="center">
-  <h1 align="center">🔮 AMC Customer Churn Prediction</h1>
+  <h1 align="center">🔮 AMC Customer Churn Prediction (Ensemble Edition)</h1>
   <p align="center">
-    <strong>Predict which customers will leave — before they actually do.</strong>
+    <strong>Predict who will leave and WHEN — using Hybrid Survival Analysis.</strong>
   </p>
   <p align="center">
     <img src="https://img.shields.io/badge/Python-3.10+-blue?logo=python&logoColor=white" alt="Python"/>
-    <img src="https://img.shields.io/badge/XGBoost-Champion-green?logo=xgboost" alt="XGBoost"/>
-    <img src="https://img.shields.io/badge/CatBoost-Challenger-orange?logo=catboost" alt="CatBoost"/>
-    <img src="https://img.shields.io/badge/SHAP-Explainability-red" alt="SHAP"/>
+    <img src="https://img.shields.io/badge/Ensemble-CatBoost%20%2B%20WTTE-purple" alt="Ensemble"/>
+    <img src="https://img.shields.io/badge/Survival-WTTE--RNN-red" alt="Survival"/>
     <img src="https://img.shields.io/badge/ROC--AUC-0.80-brightgreen" alt="AUC"/>
   </p>
 </p>
@@ -16,9 +15,9 @@
 
 ## 📌 What is This?
 
-This project builds a **machine learning pipeline to predict customer churn** for an AMC (Annual Maintenance Contract) business. It trains multiple models, evaluates them on real metrics, and explains predictions using SHAP — so you know *who* is likely to churn and *why*.
+This project builds a **state-of-the-art ensemble pipeline** to predict customer churn. We combine **CatBoost** (for maximum binary accuracy) with a **WTTE (Weibull Time-To-Event)** survival model to predict not just *if* a customer will churn, but *when* (expected lifespan).
 
-> **TL;DR:** We train 4 models (Heuristic → Logistic Regression → XGBoost → CatBoost), compare them on a rigorous leaderboard, and use SHAP to explain every prediction.
+> **TL;DR:** We've moved beyond simple classification. Our hybrid model blends gradient boosting with survival analysis to provide actionable "Months to Churn" forecasts alongside high-precision risk scores.
 
 ---
 
