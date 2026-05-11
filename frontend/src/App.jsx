@@ -3,7 +3,7 @@ import axios from 'axios';
 import { ShieldAlert, TrendingUp, Users, ChevronRight, X, Phone, Mail, Activity, DollarSign } from 'lucide-react';
 import './App.css';
 
-const API_BASE = 'http://127.0.0.1:8001/api';
+const API_BASE = 'http://127.0.0.1:8000/api';
 
 function App() {
   const [kpis, setKpis] = useState(null);
