@@ -3,10 +3,63 @@ import pandas as pd
 import numpy as np
 import shap
 import joblib
-import matplotlib.pyplot as plt
+import altair as alt
+import os
+from google import genai
 
 # --- Page Config ---
 st.set_page_config(page_title="AMC Retention Dashboard", layout="wide", page_icon="🛡️")
+
+# --- Custom CRM CSS ---
+st.markdown("""
+<style>
+    /* Professional CRM Theme */
+    div[data-testid="stMetric"] {
+        background-color: #ffffff;
+        border: 1px solid #e0e0e0;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        border-left: 4px solid #0052cc;
+    }
+    div[data-testid="stMetricValue"] {
+        color: #172b4d;
+        font-size: 28px;
+        font-weight: 700;
+    }
+    div[data-testid="stMetricLabel"] {
+        color: #5e6c84;
+        font-size: 14px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 30px;
+        border-bottom: 2px solid #ebecf0;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        white-space: pre-wrap;
+        background-color: transparent;
+        border-radius: 4px 4px 0px 0px;
+        gap: 1px;
+        padding: 10px 15px;
+        color: #5e6c84;
+        font-weight: 600;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #f4f5f7;
+        border-bottom: 3px solid #0052cc !important;
+        color: #0052cc;
+    }
+    .stDataFrame {
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+        overflow: hidden;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # --- Phase 4: Business Logic Layer (Intervention Engine) ---
 def get_intervention(row):
@@ -46,6 +99,150 @@ def get_risk_label(prob):
     elif prob > 0.5: return "🟡 High"
     elif prob > 0.3: return "🟠 Medium"
     else: return "🟢 Low"
+
+# --- Gemini Retention Message Generator ---
+def generate_retention_message(customer: dict, channel: str) -> str:
+    """Calls Google Gemini to generate a personalized retention outreach message."""
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        return "ERROR: GEMINI_API_KEY environment variable is not set. Please set it and restart the app."
+
+    client = genai.Client(api_key=api_key)
+
+    # Channel-specific tone and length instructions
+    channel_instructions = {
+        "WhatsApp": "Write in a casual, warm, friendly tone suitable for a WhatsApp message. Keep it under 120 words. Use short paragraphs. Do NOT use subject lines.",
+        "Email": "Write in a professional, polished business-email tone. Keep it under 200 words. Include a subject line at the top prefixed with 'Subject:'.",
+        "Formal Letter": "Write in a formal business-letter tone with proper salutation and sign-off. Keep it under 300 words. Include date, addressee header, and sender sign-off as 'AMC Services Team'."
+    }
+
+    prompt = f"""You are a senior customer retention specialist at a leading HVAC AMC (Annual Maintenance Contract) company in India.
+
+Generate a personalized retention outreach message for the following customer. Use their ACTUAL data values directly in the message — do NOT use any placeholders like [Name] or {{brand}}.
+
+Customer Details:
+- Name: {customer.get('customer_name', 'Valued Customer')}
+- City: {customer.get('city', 'N/A')}
+- Equipment Brand: {customer.get('equipment_brand', 'N/A')}
+- Equipment Type: {customer.get('equipment_type', 'AC')}
+- Equipment Age: {customer.get('equipment_age_years', 'N/A')} years
+- Contract Tier: {customer.get('contract_tier', 'Standard')}
+- Contract Value: ₹{customer.get('contract_value_inr', 0):,.0f}
+- Contract Expiry: {customer.get('contract_end_date', 'N/A')}
+- Days Until Expiry: {customer.get('days_to_expiry', 'N/A')}
+- Previous Renewals: {customer.get('previous_renewals', 0)}
+- Unresolved Complaints: {int(customer.get('unresolved_complaints', 0))}
+- Missed Scheduled Visits: {int(customer.get('missed_scheduled_visits', 0))}
+- Churn Risk Score: {customer.get('churn_probability', 0):.0%}
+
+Channel: {channel}
+{channel_instructions.get(channel, channel_instructions['Email'])}
+
+Rules:
+1. Address the customer by their actual name.
+2. Mention their specific equipment brand and age naturally in the message.
+3. Reference their contract expiry date or days remaining.
+4. If they have unresolved complaints or missed visits, acknowledge and apologize.
+5. Include a soft, non-pushy call to action (e.g., schedule a call, renew online, reply to this message).
+6. Do NOT invent any data not provided above.
+7. Output ONLY the message — no commentary, no notes, no meta-text.
+"""
+
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+        return response.text.strip()
+    except Exception as e:
+        return f"ERROR: Failed to generate message — {str(e)}"
+
+# --- Natural Language Query Engine ---
+def nl_to_pandas_filter(query: str) -> str:
+    """Sends a plain English query to Gemini and returns a pandas boolean filter expression."""
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        return "ERROR: GEMINI_API_KEY not set."
+
+    client = genai.Client(api_key=api_key)
+
+    prompt = f"""You are a pandas expert. You will receive a plain English query about a dataframe called `df`.
+
+The dataframe has these columns and types:
+- customer_id (str)
+- customer_name (str)
+- city (str)
+- contract_start_date (str, date format)
+- contract_end_date (str, date format)
+- contract_value_inr (float)
+- contract_tier (str: 'Basic', 'Standard', 'Premium')
+- equipment_brand (str)
+- equipment_age_years (float)
+- equipment_type (str)
+- total_service_calls (int)
+- avg_resolution_time_days (float)
+- unresolved_complaints (int)
+- last_service_date (str, date format)
+- missed_scheduled_visits (int)
+- repeat_complaints (int, 0 or 1)
+- previous_renewals (int)
+- days_to_expiry (int)
+- renewal_reminder_sent (int, 0 or 1)
+- last_renewal_delay_days (int)
+- churn (int, 0 or 1)
+- churn_reason (str)
+- estimated_churn_date (str, date format)
+- churn_probability (float, 0.0 to 1.0)
+
+User query: "{query}"
+
+Return ONLY a valid pandas boolean filter expression that can be used as `df[<expression>]`.
+Rules:
+1. Output ONLY the expression — no markdown, no backticks, no explanation, no code block fences.
+2. Use proper pandas syntax (e.g., df['col'] > value, df['col'].str.contains('x'), df['col'].isin([...])).
+3. For string comparisons, use .str.lower() for case-insensitive matching.
+4. Combine conditions with & (and) or | (or), wrapping each in parentheses.
+5. Do NOT include `df[` wrapper or `]` — just the boolean expression itself.
+6. If the query is ambiguous, make a reasonable assumption.
+
+Examples:
+Query: "customers in Mumbai" → (df['city'].str.lower() == 'mumbai')
+Query: "churn probability above 80%" → (df['churn_probability'] > 0.8)
+Query: "premium contracts worth more than 20000" → (df['contract_tier'].str.lower() == 'premium') & (df['contract_value_inr'] > 20000)
+Query: "old equipment with complaints" → (df['equipment_age_years'] > 7) & (df['unresolved_complaints'] > 0)
+"""
+
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+        expr = response.text.strip()
+        # Clean up common LLM artifacts
+        expr = expr.replace('```python', '').replace('```', '').strip()
+        return expr
+    except Exception as e:
+        return f"ERROR: {str(e)}"
+
+
+def apply_nl_filter(df_input: pd.DataFrame, expression: str):
+    """Safely applies a pandas filter expression to the dataframe using eval().
+    Returns (filtered_df, expression, error_message)."""
+    if not expression or expression.startswith("ERROR:"):
+        return None, expression, expression if expression.startswith("ERROR:") else "Empty expression received."
+
+    try:
+        # Create a safe local namespace with only df and pd
+        mask = eval(expression, {"__builtins__": {}}, {"df": df_input, "pd": pd, "np": np})
+        result = df_input[mask]
+        return result, expression, None
+    except KeyError as e:
+        return None, expression, f"Column not found: {e}. Check if the column name is valid."
+    except SyntaxError:
+        return None, expression, f"Invalid filter syntax generated. Try rephrasing your query."
+    except Exception as e:
+        return None, expression, f"Filter failed: {str(e)}. Try a simpler query."
+
 
 # --- Data Loading ---
 @st.cache_data
@@ -93,22 +290,67 @@ st.markdown("""
 
 st.title("🛡️ AMC Retention & Operations Command Center")
 
-# --- Sidebar Filters ---
-st.sidebar.header("🔎 Filters")
-selected_city = st.sidebar.multiselect("City", options=sorted(df['city'].unique()), default=sorted(df['city'].unique()))
-selected_brand = st.sidebar.multiselect("Equipment Brand", options=sorted(df['equipment_brand'].unique()), default=sorted(df['equipment_brand'].unique()))
-selected_tier = st.sidebar.multiselect("Contract Tier", options=sorted(df['contract_tier'].unique()), default=sorted(df['contract_tier'].unique()))
-risk_filter = st.sidebar.multiselect("Risk Level", options=["🔴 Critical", "🟡 High", "🟠 Medium", "🟢 Low"], default=["🔴 Critical", "🟡 High"])
+# --- Natural Language Search Bar ---
+st.markdown("""<div style='background:#ffffff; border:1px solid #dfe1e6; border-radius:8px; padding:16px 20px; margin-bottom:20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);'>
+    <span style='color:#172b4d; font-weight:600; font-size:15px;'>🧠 AI-Powered Natural Language Search</span>
+    <span style='color:#5e6c84; font-size:13px; margin-left:12px;'>Ask questions about your customer data in plain English</span>
+</div>""", unsafe_allow_html=True)
 
-filtered_df = df[
-    (df['city'].isin(selected_city)) & 
-    (df['equipment_brand'].isin(selected_brand)) & 
-    (df['contract_tier'].isin(selected_tier)) &
-    (df['risk_level'].isin(risk_filter))
-].copy()
+nl_query = st.text_input(
+    "Ask a question",
+    placeholder='e.g. "Show me premium customers in Mumbai with churn risk above 70%"',
+    label_visibility="collapsed",
+    key="nl_search_bar"
+)
+
+# Process NL query
+if nl_query:
+    with st.spinner("🧠 Translating your query with Gemini AI..."):
+        expression = nl_to_pandas_filter(nl_query)
+        nl_result, nl_expr, nl_error = apply_nl_filter(df, expression)
+
+    if nl_error:
+        st.error(f"❌ {nl_error}")
+        if nl_expr and not nl_expr.startswith("ERROR:"):
+            st.caption(f"Generated expression: `{nl_expr}`")
+    else:
+        st.caption(f"🔗 Pandas filter: `{nl_expr}`")
+        st.success(f"✅ Found **{len(nl_result)}** matching customers")
+        st.dataframe(
+            nl_result[['customer_id', 'customer_name', 'city', 'equipment_brand',
+                       'equipment_age_years', 'contract_value_inr', 'contract_tier',
+                       'churn_probability', 'days_to_expiry']].sort_values('churn_probability', ascending=False).style.format({
+                'churn_probability': '{:.1%}',
+                'contract_value_inr': '₹ {:,.0f}'
+            }),
+            use_container_width=True,
+            hide_index=True,
+            height=300
+        )
+
+st.markdown("---")
+
+# --- Sidebar Filters ---
+st.sidebar.markdown("## 🔎 Global Filters")
+st.sidebar.markdown("<span style='color:#5e6c84; font-size: 14px;'>Leave empty to select all</span>", unsafe_allow_html=True)
+st.sidebar.markdown("---")
+
+selected_city = st.sidebar.multiselect("📍 City", options=sorted(df['city'].unique()))
+selected_brand = st.sidebar.multiselect("🏷️ Equipment Brand", options=sorted(df['equipment_brand'].unique()))
+selected_tier = st.sidebar.multiselect("⭐ Contract Tier", options=sorted(df['contract_tier'].unique()))
+risk_filter = st.sidebar.multiselect("⚠️ Risk Level", options=["🔴 Critical", "🟡 High", "🟠 Medium", "🟢 Low"])
+
+# Filter logic
+mask = pd.Series(True, index=df.index)
+if selected_city: mask = mask & df['city'].isin(selected_city)
+if selected_brand: mask = mask & df['equipment_brand'].isin(selected_brand)
+if selected_tier: mask = mask & df['contract_tier'].isin(selected_tier)
+if risk_filter: mask = mask & df['risk_level'].isin(risk_filter)
+
+filtered_df = df[mask].copy()
 
 # --- Tabs ---
-tab1, tab2, tab3, tab4 = st.tabs(["📊 Revenue at Risk (Overview)", "👥 Customer Explainability", "🔧 Field Ops Planner", "📈 Model Insights"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Revenue at Risk", "👥 Explainability", "🔧 Field Ops", "📈 Model Insights", "✉️ Retention Outreach"])
 
 # ---- Tab 1: Overview ----
 with tab1:
@@ -189,26 +431,29 @@ with tab2:
                 st.markdown(f"{i+1}. {r}")
                 
         with col_right:
-            st.markdown("#### 📊 Mathematical Proof (SHAP)")
+            st.markdown("#### 📊 Key Churn Drivers (SHAP Impact)")
             X_customer = pd.DataFrame([customer_row[feature_names]])
             for col in feature_names:
                 X_customer[col] = pd.to_numeric(X_customer[col], errors='coerce')
 
-            shap_values = explainer.shap_values(X_customer)
+            shap_values = explainer.shap_values(X_customer)[0]
             
-            fig, ax = plt.subplots(figsize=(8, 4))
-            shap.waterfall_plot(
-                shap.Explanation(
-                    values=shap_values[0], 
-                    base_values=explainer.expected_value, 
-                    data=X_customer.iloc[0].values, 
-                    feature_names=feature_names
-                ), 
-                show=False
-            )
-            plt.tight_layout()
-            st.pyplot(fig)
-            plt.close(fig)
+            shap_df = pd.DataFrame({
+                'Feature': feature_names,
+                'Impact': shap_values,
+                'Absolute Impact': np.abs(shap_values)
+            }).sort_values('Absolute Impact', ascending=False).head(8)
+            
+            shap_df['Direction'] = shap_df['Impact'].apply(lambda x: 'Increases Risk' if x > 0 else 'Decreases Risk')
+            
+            chart = alt.Chart(shap_df).mark_bar().encode(
+                x=alt.X('Impact:Q', title='Impact on Churn Probability', axis=alt.Axis(format='%')),
+                y=alt.Y('Feature:N', sort='-x', title=''),
+                color=alt.Color('Direction:N', scale=alt.Scale(domain=['Increases Risk', 'Decreases Risk'], range=['#de350b', '#00875a']), legend=alt.Legend(title="Effect")),
+                tooltip=['Feature', alt.Tooltip('Impact:Q', format='.2%')]
+            ).properties(height=350).configure_axis(grid=False).configure_view(strokeWidth=0)
+            
+            st.altair_chart(chart, use_container_width=True)
 
 # ---- Tab 3: Field Ops Planner ----
 with tab3:
@@ -246,12 +491,81 @@ with tab4:
     imp_df = pd.DataFrame({
         'Feature': feature_names,
         'Importance': importance
-    }).sort_values('Importance', ascending=True)
+    }).sort_values('Importance', ascending=False).head(15)
     
-    fig, ax = plt.subplots(figsize=(10, 6))
-    ax.barh(imp_df['Feature'], imp_df['Importance'], color='#ff4b4b')
-    ax.set_xlabel('Relative Importance (Gain)')
-    ax.set_title('Global Feature Importance (What drives AMC churn?)')
-    plt.tight_layout()
-    st.pyplot(fig)
-    plt.close(fig)
+    chart = alt.Chart(imp_df).mark_bar(color='#0052cc').encode(
+        x=alt.X('Importance:Q', title='Relative Importance (Gain)'),
+        y=alt.Y('Feature:N', sort='-x', title=''),
+        tooltip=['Feature', 'Importance']
+    ).properties(height=500, title='Global Feature Importance (Top 15)').configure_axis(grid=False).configure_view(strokeWidth=0)
+    
+    st.altair_chart(chart, use_container_width=True)
+
+# ---- Tab 5: Retention Letter Generator ----
+with tab5:
+    st.markdown("### ✉️ AI-Powered Retention Outreach Generator")
+    st.markdown("Generate personalized retention messages for at-risk customers using **Google Gemini AI**. "
+                "Messages are crafted from each customer's real data — equipment details, contract status, and service history.")
+    st.markdown("---")
+
+    ret_customers = filtered_df.sort_values('churn_probability', ascending=False)['customer_id'].tolist()
+
+    if not ret_customers:
+        st.warning("No customers match the current filters. Adjust the sidebar filters to see customers.")
+    else:
+        col_sel1, col_sel2 = st.columns([2, 1])
+        with col_sel1:
+            ret_selected = st.selectbox("Select Customer", ret_customers, key="ret_customer_select",
+                                        format_func=lambda cid: f"{cid} — {df[df['customer_id']==cid].iloc[0]['customer_name']} (Risk: {df[df['customer_id']==cid].iloc[0]['churn_probability']:.0%})")
+        with col_sel2:
+            ret_channel = st.selectbox("Outreach Channel", ["WhatsApp", "Email", "Formal Letter"], key="ret_channel_select")
+
+        ret_row = df[df['customer_id'] == ret_selected].iloc[0]
+
+        # Show a compact customer summary card
+        st.markdown(f"""
+        <div style='background:#f4f5f7; border:1px solid #dfe1e6; border-radius:8px; padding:16px 20px; margin:12px 0;'>
+            <div style='display:flex; gap:40px; flex-wrap:wrap;'>
+                <div><strong style='color:#5e6c84;'>NAME</strong><br>{ret_row['customer_name']}</div>
+                <div><strong style='color:#5e6c84;'>CITY</strong><br>{ret_row['city']}</div>
+                <div><strong style='color:#5e6c84;'>BRAND</strong><br>{ret_row['equipment_brand']}</div>
+                <div><strong style='color:#5e6c84;'>AGE</strong><br>{int(ret_row['equipment_age_years'])} yrs</div>
+                <div><strong style='color:#5e6c84;'>CONTRACT</strong><br>₹{ret_row['contract_value_inr']:,.0f} ({ret_row['contract_tier']})</div>
+                <div><strong style='color:#5e6c84;'>EXPIRY</strong><br>{ret_row['contract_end_date']} ({int(ret_row['days_to_expiry'])}d left)</div>
+                <div><strong style='color:#5e6c84;'>RISK</strong><br>{ret_row['churn_probability']:.0%}</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Generate button
+        if st.button("🚀 Generate Retention Message", type="primary", use_container_width=True):
+            with st.spinner(f"Generating {ret_channel} message via Gemini AI..."):
+                message = generate_retention_message(ret_row.to_dict(), ret_channel)
+                st.session_state['generated_message'] = message
+                st.session_state['generated_channel'] = ret_channel
+
+        # Display result
+        if 'generated_message' in st.session_state and st.session_state['generated_message']:
+            st.markdown(f"#### Generated {st.session_state.get('generated_channel', '')} Message")
+            st.text_area("Output", value=st.session_state['generated_message'], height=300, key="ret_output_area")
+
+            # Copy button using st.code as fallback + JS clipboard
+            st.markdown(f"""
+            <textarea id="clipboardText" style="position:absolute;left:-9999px;">{st.session_state['generated_message']}</textarea>
+            <button onclick="
+                var t = document.getElementById('clipboardText');
+                t.style.position='static';
+                t.select();
+                document.execCommand('copy');
+                t.style.position='absolute';
+                t.style.left='-9999px';
+                this.innerText='✅ Copied!';
+                setTimeout(()=>this.innerText='📋 Copy to Clipboard', 2000);
+            " style="
+                background:#0052cc; color:white; border:none; padding:10px 24px;
+                border-radius:6px; font-size:14px; font-weight:600; cursor:pointer;
+                margin-top:8px; transition: background 0.2s;
+            " onmouseover="this.style.background='#0065ff'" onmouseout="this.style.background='#0052cc'">
+                📋 Copy to Clipboard
+            </button>
+            """, unsafe_allow_html=True)
