@@ -55,7 +55,7 @@ graph LR
 
 ### Phase 1 — Synthetic Data Generation (`generate_amc_data.py`)
 
-Generates **1,200 realistic HVAC AMC customer records** with rule-based churn probability influenced by:
+Generates **1,200 realistic HVAC AMC customer records** (churn rate: **27.92%**) with rule-based churn probability influenced by:
 
 | Churn Signal | Impact |
 |---|---|
@@ -88,34 +88,34 @@ Generates **1,200 realistic HVAC AMC customer records** with rule-based churn pr
 
 | Metric | Score |
 |---|---|
-| **Accuracy** | 0.846 |
-| **Precision** | 0.829 |
-| **Recall** | 0.758 |
-| **F1-Score** | 0.792 |
-| **AUC-ROC** | 0.917 |
+| **Accuracy** | 0.704 |
+| **Precision** | 0.469 |
+| **Recall** | 0.448 |
+| **F1-Score** | 0.458 |
+| **AUC-ROC** | 0.691 |
+
+#### Classification Report
+
+```
+              precision    recall  f1-score   support
+
+    Retained       0.79      0.80      0.80       173
+     Churned       0.47      0.45      0.46        67
+
+    accuracy                           0.70       240
+   macro avg       0.63      0.63      0.63       240
+weighted avg       0.70      0.70      0.70       240
+```
+
+> **Note:** The model is trained on 1,200 synthetically generated samples with a 27.92% churn rate. Performance reflects the challenge of noisy, rule-based labels — the focus of this branch is the **end-to-end system** (data → model → dashboard → GenAI outreach), not maximizing classifier accuracy.
 
 ### Cox Survival Model
 
 | Metric | Score |
 |---|---|
-| **Concordance Index** | 0.714 |
+| **Concordance Index** | 0.6548 |
 
-> A concordance index > 0.7 indicates the survival model can meaningfully rank customers by time-to-churn.
-
-### Global Feature Importance (Top 10)
-
-```
-unresolved_complaints       ██████████████████████  0.189
-days_since_last_service     ████████████████████    0.171
-equipment_age_years         █████████████████       0.142
-avg_resolution_time_days    ██████████████          0.119
-missed_scheduled_visits     ████████████            0.098
-renewal_loyalty_score       ██████████              0.085
-contract_value_inr          █████████               0.074
-days_to_expiry              ████████                0.063
-previous_renewals           ██████                  0.047
-service_call_rate           █████                   0.039
-```
+> A concordance index > 0.5 means better than random; 0.65 indicates moderate discriminative ability for ranking customers by time-to-churn.
 
 ![Model Insights](screenshots/model_insights_tab.png)
 
@@ -230,6 +230,7 @@ AMC-master/
 │   ├── explainability_tab.png
 │   ├── field_ops_tab.png
 │   ├── model_insights_tab.png
+│   ├── nl_query.png
 │   └── retention_outreach_tab.png
 │
 │  # Generated at runtime (gitignored):
