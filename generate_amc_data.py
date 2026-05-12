@@ -11,49 +11,60 @@ def generate_amc_data(num_rows=1200):
     eq_types = ['Split', 'Cassette', 'Central']
     tiers = ['Basic', 'Standard', 'Premium']
     cities = ['Nagpur', 'Pune', 'Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Chennai', 'Kolkata']
-
-    first_names = ['Amit', 'Rahul', 'Sanjay', 'Priya', 'Anjali', 'Vikram', 'Suresh', 'Meena', 'Deepak', 'Rohan']
-    last_names = ['Sharma', 'Verma', 'Patil', 'Deshmukh', 'Joshi', 'Kulkarni', 'Singh', 'Nair', 'Iyer', 'Gupta']
+    
+    # Adding more professional/B2B or realistic B2C names
+    first_names = ['Amit', 'Rahul', 'Sanjay', 'Priya', 'Anjali', 'Vikram', 'Suresh', 'Meena', 'Deepak', 'Rohan',
+                   'Neha', 'Kiran', 'Pooja', 'Arun', 'Manish', 'Sneha', 'Rajesh', 'Aarti', 'Gaurav', 'Divya']
+    last_names = ['Sharma', 'Verma', 'Patil', 'Deshmukh', 'Joshi', 'Kulkarni', 'Singh', 'Nair', 'Iyer', 'Gupta',
+                  'Mehta', 'Reddy', 'Bose', 'Chandra', 'Tiwari', 'Pandey', 'Mishra', 'Das', 'Rao', 'Kapoor']
 
     data = []
-
-    current_date = datetime(2025, 5, 12)
+    today = datetime(2025, 5, 12)
 
     for i in range(num_rows):
         customer_id = f'C{i+1:04d}'
         customer_name = f"{random.choice(first_names)} {random.choice(last_names)}"
+        city = random.choice(cities)
         
-        # Base features
+        # Equipment info
         equipment_age_years = np.random.randint(1, 15)
+        equipment_brand = random.choice(brands)
+        equipment_type = np.random.choice(eq_types, p=[0.7, 0.2, 0.1])
+        
+        # Contract info — variable duration (6 months to 2 years)
         contract_tier = np.random.choice(tiers, p=[0.5, 0.3, 0.2])
+        contract_duration_months = np.random.choice([6, 12, 18, 24], p=[0.1, 0.6, 0.15, 0.15])
+        contract_duration_days = int(contract_duration_months * 30.44)
         
-        # Base values for contract
+        # Standardize contract values to look like real AMC packages (rounded to 500)
         if contract_tier == 'Basic':
-            contract_value_inr = np.random.randint(5000, 10000)
+            contract_value_inr = int(np.round(np.random.randint(5000, 12000) / 500.0) * 500)
         elif contract_tier == 'Standard':
-            contract_value_inr = np.random.randint(10000, 20000)
+            contract_value_inr = int(np.round(np.random.randint(10000, 22000) / 500.0) * 500)
         else:
-            contract_value_inr = np.random.randint(20000, 50000)
+            contract_value_inr = int(np.round(np.random.randint(18000, 50000) / 500.0) * 500)
 
-        previous_renewals = np.random.randint(0, 10)
-        
-        # Derive days_to_expiry. Most AMC contracts are 1 year.
-        # Let's say days_to_expiry ranges from -30 to 365
+        # days_to_expiry: from -30 (already expired) to 365
         days_to_expiry = np.random.randint(-30, 365)
         
-        contract_end_date = current_date + timedelta(days=int(days_to_expiry))
-        contract_start_date = contract_end_date - timedelta(days=365)
-        installation_date = contract_end_date - timedelta(days=365 * int(equipment_age_years))
+        contract_end_date = today + timedelta(days=int(days_to_expiry))
+        contract_start_date = contract_end_date - timedelta(days=contract_duration_days)
+        installation_date = today - timedelta(days=365 * int(equipment_age_years) + np.random.randint(0, 180))
+
+        # Renewal history
+        previous_renewals = np.random.randint(0, 10)
         
-        # Service history based somewhat on age and random chance
-        total_service_calls = np.random.randint(0, equipment_age_years * 3 + 2)
+        # Service history (correlated with equipment age)
+        base_calls = max(0, equipment_age_years - 2)
+        total_service_calls = np.random.randint(0, base_calls * 3 + 3)
         
         if total_service_calls > 0:
-            unresolved_complaints = np.random.randint(0, min(total_service_calls, 5) + 1)
+            unresolved_complaints = np.random.randint(0, min(total_service_calls, 6) + 1)
             avg_resolution_time_days = round(np.random.uniform(0.5, 10.0), 1)
-            last_service_date = contract_end_date - timedelta(days=int(np.random.randint(10, 300)))
-            missed_scheduled_visits = np.random.randint(0, 3)
-            repeat_complaints = np.random.choice([True, False], p=[0.3, 0.7])
+            service_recency = np.random.randint(5, 350)
+            last_service_date = today - timedelta(days=service_recency)
+            missed_scheduled_visits = np.random.randint(0, 4)
+            repeat_complaints = bool(np.random.choice([True, False], p=[0.3, 0.7]))
         else:
             unresolved_complaints = 0
             avg_resolution_time_days = 0.0
@@ -61,60 +72,85 @@ def generate_amc_data(num_rows=1200):
             missed_scheduled_visits = 0
             repeat_complaints = False
             
-        renewal_reminder_sent = bool(days_to_expiry < 30 and np.random.choice([True, False], p=[0.8, 0.2]))
+        renewal_reminder_sent = bool(days_to_expiry < 30 and np.random.random() < 0.8)
         if previous_renewals > 0:
-            last_renewal_delay_days = np.random.randint(-10, 30)
+            last_renewal_delay_days = np.random.randint(-10, 45)
         else:
             last_renewal_delay_days = 0
 
-        # Calculate churn probability based on rules
-        churn_prob = 0.14 # base probability
-        
+        # --- Churn probability calculation ---
+        churn_prob = 0.12  # base
+
+        # High churn signals
         if equipment_age_years > 5:
-            churn_prob += 0.15
+            churn_prob += 0.12
+        if equipment_age_years > 10:
+            churn_prob += 0.08
         if unresolved_complaints > 2:
-            churn_prob += 0.2
+            churn_prob += 0.18
         if avg_resolution_time_days > 4:
-            churn_prob += 0.1
+            churn_prob += 0.10
         if days_to_expiry < 30:
-            churn_prob += 0.1
+            churn_prob += 0.08
         if previous_renewals == 0:
-            churn_prob += 0.1
+            churn_prob += 0.10
+        if missed_scheduled_visits >= 2:
+            churn_prob += 0.06
+        if repeat_complaints:
+            churn_prob += 0.05
             
+        # Seasonality Rule: If it's April/May (peak cooling season) and they haven't renewed (days_to_expiry < 15), huge risk.
+        if contract_end_date.month in [4, 5] and days_to_expiry < 15:
+            churn_prob += 0.15
+            
+        # Low churn signals
         if previous_renewals > 2:
-            churn_prob -= 0.15
+            churn_prob -= 0.12
+        if previous_renewals > 5:
+            churn_prob -= 0.05
         if unresolved_complaints == 0:
-            churn_prob -= 0.1
+            churn_prob -= 0.08
         if contract_value_inr > 25000:
-            churn_prob -= 0.1
+            churn_prob -= 0.08
+        if contract_tier == 'Premium':
+            churn_prob -= 0.05
             
-        # Add some noise
-        churn_prob += np.random.uniform(-0.1, 0.1)
-        
-        # Cap probability between 0.01 and 0.95
-        churn_prob = max(0.01, min(0.95, churn_prob))
+        # Noise
+        churn_prob += np.random.uniform(-0.08, 0.08)
+        churn_prob = max(0.02, min(0.92, churn_prob))
         
         churn = 1 if random.random() < churn_prob else 0
         
-        # Set churn_reason and estimated_churn_date
+        # --- Churn reason ---
         if churn == 1:
-            if unresolved_complaints > 2 or avg_resolution_time_days > 4:
-                churn_reason = 'Service Quality'
-            elif equipment_age_years > 8:
-                churn_reason = 'Equipment Replaced'
-            else:
-                churn_reason = random.choice(['Price', 'Competitor', 'Service Quality'])
+            weights = {
+                'Service Quality': 1.0,
+                'Price': 1.0,
+                'Equipment Replaced': 1.0,
+                'Competitor': 1.0
+            }
+            if unresolved_complaints > 2 or avg_resolution_time_days > 5 or missed_scheduled_visits > 0:
+                weights['Service Quality'] += 4.0
+            if contract_value_inr > 18000 and contract_tier == 'Basic':
+                weights['Price'] += 3.0
+            if equipment_age_years > 8:
+                weights['Equipment Replaced'] += 4.0
+            if days_to_expiry < 15 and previous_renewals <= 1:
+                weights['Competitor'] += 2.0
+            if contract_end_date.month in [4, 5]: # Peak season competitor poaching
+                weights['Competitor'] += 2.0
+            
+            reason_list = list(weights.keys())
+            reason_weights = np.array(list(weights.values()))
+            reason_weights = reason_weights / reason_weights.sum()
+            churn_reason = np.random.choice(reason_list, p=reason_weights)
             
             # estimated_churn_date within 60 days of contract end
-            churn_date_offset = np.random.randint(-60, 60)
+            churn_date_offset = np.random.randint(-30, 60)
             estimated_churn_date = contract_end_date + timedelta(days=int(churn_date_offset))
         else:
             churn_reason = None
             estimated_churn_date = pd.NaT
-            
-        equipment_brand = random.choice(brands)
-        equipment_type = np.random.choice(eq_types, p=[0.7, 0.2, 0.1])
-        city = random.choice(cities)
         
         data.append({
             'customer_id': customer_id,
@@ -149,7 +185,6 @@ def generate_amc_data(num_rows=1200):
     date_cols = ['contract_start_date', 'contract_end_date', 'installation_date', 'last_service_date', 'estimated_churn_date']
     for col in date_cols:
         df[col] = pd.to_datetime(df[col]).dt.strftime('%Y-%m-%d')
-        # Replace NaT with None so it translates to empty/null in CSV gracefully if needed, or we can just leave it
         
     return df
 
@@ -158,4 +193,4 @@ if __name__ == '__main__':
     print(f"Total Rows: {len(df)}")
     print(f"Churn Rate: {df['churn'].mean():.2%}")
     df.to_csv('amc_synthetic_data.csv', index=False)
-    print("Saved to amc_synthetic_data.csv")
+    print("\nSaved to amc_synthetic_data.csv")
