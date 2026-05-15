@@ -5,6 +5,7 @@ import shap
 import joblib
 import altair as alt
 import os
+import time
 from google import genai
 
 # --- Page Config ---
@@ -304,8 +305,8 @@ def apply_nl_filter(df_input: pd.DataFrame, expression: str):
 
 
 # --- Data Loading ---
-@st.cache_data(ttl=3600)  # Added ttl to clear the stale cache and load new columns
-def load_data():
+@st.cache_data(show_spinner="Loading AMC Data...")
+def load_data_v2():
     df = pd.read_csv('processed_amc_data.csv')
     # add season
     df['expiry_month'] = pd.to_datetime(df['contract_end_date']).dt.month
@@ -320,7 +321,7 @@ def load_models():
     return xgb_model, explainer, features
 
 try:
-    df = load_data()
+    df = load_data_v2()
     xgb_model, explainer, feature_names = load_models()
 except FileNotFoundError:
     st.error("⚠️ Data or models not found. Run `python generate_amc_data.py` then `python train_pipeline.py` first.")
@@ -478,11 +479,12 @@ with tab2:
         selected_customer = st.selectbox("Select Customer ID to Analyze", customer_options)
         customer_row = df[df['customer_id'] == selected_customer].iloc[0]
         
-        c1, c2, c3, c4 = st.columns(4)
+        c1, c2, c3, c4, c5 = st.columns(5)
         c1.metric("Churn Risk (Confidence)", f"{customer_row['churn_probability']:.1%}")
         c2.metric("Contract Value", f"₹ {customer_row['contract_value_inr']:,.0f}")
         c3.metric("Unresolved Complaints", f"{int(customer_row['unresolved_complaints'])}")
         c4.metric("Equipment Age", f"{int(customer_row['equipment_age_years'])} yrs")
+        c5.metric("Est. Days to Churn", f"{int(customer_row['estimated_days_to_churn'])}")
         
         st.success(f"Prescribed Action: {customer_row['intervention']}")
         st.info(f"Outreach Channel: {customer_row['outreach_action']}")
@@ -608,11 +610,12 @@ with tab5:
 
             # Show a compact customer summary card
             st.write("**Customer Profile**")
-            sum_cols = st.columns(4)
+            sum_cols = st.columns(5)
             sum_cols[0].write(f"**Name:** {ret_row['customer_name']}\n\n**City:** {ret_row['city']}")
             sum_cols[1].write(f"**Brand:** {ret_row['equipment_brand']}\n\n**Age:** {int(ret_row['equipment_age_years'])} yrs")
             sum_cols[2].write(f"**Contract:** ₹{ret_row['contract_value_inr']:,.0f} ({ret_row['contract_tier']})\n\n**Expiry:** {ret_row['contract_end_date']}")
             sum_cols[3].write(f"**Risk:** {ret_row['churn_probability']:.0%}\n\n**Renewal Rate:** {ret_row['renewal_rate']:.0%}")
+            sum_cols[4].write(f"**Est. Churn Time:**\n\n{int(ret_row['estimated_days_to_churn'])} Days")
             
             st.markdown("<br>", unsafe_allow_html=True)
 
@@ -635,14 +638,55 @@ with tab5:
         st.metric("Eligible Customers for Campaign", len(target_df))
         
         if len(target_df) > 0:
-            st.dataframe(target_df[['customer_id', 'customer_name', 'renewal_rate', 'days_to_expiry', 'churn_probability']].style.format({'renewal_rate': '{:.0%}', 'churn_probability': '{:.0%}'}))
-            campaign_channel = st.selectbox("Campaign Channel", ["WhatsApp", "Email"], key="camp_chan")
-            if st.button("Generate Campaign Drafts (Top 3 as Demo)", type="primary"):
-                with st.spinner("Generating bulk messages..."):
-                    for _, row in target_df.head(3).iterrows():
+            target_df = target_df.head(10) # Limit to 10 customers
+            
+            # Add dummy contact info
+            target_df = target_df.copy()
+            target_df['contact_info'] = target_df.apply(
+                lambda x: f"+91 98{hash(x['customer_name']) % 100000000:08d}" if st.session_state.get('camp_chan') == 'WhatsApp' else f"{x['customer_name'].split()[0].lower()}@example.com", 
+                axis=1
+            )
+            
+            st.dataframe(target_df[['customer_id', 'customer_name', 'contact_info', 'renewal_rate', 'days_to_expiry', 'churn_probability']].style.format({'renewal_rate': '{:.0%}', 'churn_probability': '{:.0%}'}))
+            
+            campaign_channel = st.selectbox("Campaign Channel", ["Email", "WhatsApp"], key="camp_chan")
+            
+            if st.button(f"Generate Drafts for {len(target_df)} Customers"):
+                st.session_state['bulk_campaign_drafts'] = []
+                with st.spinner("Generating personalized drafts via Gemini..."):
+                    for _, row in target_df.iterrows():
                         msg = generate_retention_message(row.to_dict(), campaign_channel)
-                        st.markdown(f"**To: {row['customer_name']}** (`{row['customer_id']}`)")
-                        st.info(msg)
+                        st.session_state['bulk_campaign_drafts'].append({
+                            'customer': row['customer_name'],
+                            'contact': row['contact_info'],
+                            'msg': msg
+                        })
+            
+            if 'bulk_campaign_drafts' in st.session_state and st.session_state['bulk_campaign_drafts']:
+                st.markdown("---")
+                st.markdown("### Generated Campaign Drafts")
+                
+                drafts = st.session_state['bulk_campaign_drafts']
+                
+                for i, draft in enumerate(drafts):
+                    st.markdown(f"**To:** {draft['customer']} ({draft['contact']})")
+                    st.info(draft['msg'])
+                    
+                    if st.button(f"Send to {draft['customer']}", key=f"send_btn_{i}"):
+                        with st.spinner("Sending..."):
+                            time.sleep(0.5)
+                        st.success(f"Message sent to {draft['contact']}!")
+                    st.markdown("---")
+                    
+                if st.button("🚀 Send All Messages", type="primary", use_container_width=True):
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+                    for i, draft in enumerate(drafts):
+                        status_text.text(f"Sending {campaign_channel} to {draft['customer']}...")
+                        time.sleep(0.3)
+                        progress_bar.progress((i + 1) / len(drafts))
+                    status_text.text("")
+                    st.success(f"✅ Successfully deployed {len(drafts)} {campaign_channel} retention offers!")
 
 # ---- Tab 6: Renewal Funnel ----
 with tab6:
