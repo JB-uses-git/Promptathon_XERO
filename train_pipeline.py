@@ -162,6 +162,17 @@ def run_pipeline():
     print("\n[Final] Generating predictions for all customers...")
     df['churn_probability'] = xgb_model.predict_proba(X)[:, 1]
     
+    # Generate Estimated Days to Churn using the Cox Survival Model
+    # First, handle missing values for the Cox prediction matching what we did in training
+    cox_pred_df = df_cox[cox_features].drop(columns=['duration', 'churn']).fillna(0)
+    expected_duration = cph.predict_expectation(cox_pred_df)
+    
+    # The expected duration is the total days from contract start to expected churn.
+    # To get days from TODAY until expected churn, we subtract the days passed.
+    days_passed = (today - df['contract_start_date']).dt.days
+    estimated_days_left = expected_duration - days_passed
+    df['estimated_days_to_churn'] = estimated_days_left.clip(lower=1).round()
+    
     df.to_csv('processed_amc_data.csv', index=False)
     
     print(f"\n{'=' * 60}")
