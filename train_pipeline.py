@@ -65,7 +65,8 @@ def run_pipeline():
         'renewal_reminder_sent', 'last_renewal_delay_days',
         'contract_duration_days', 'service_call_rate', 'days_since_last_service',
         'renewal_loyalty_score', 'expiry_month',
-        'city_encoded', 'equipment_brand_encoded', 'contract_tier_encoded', 'equipment_type_encoded'
+        'city_encoded', 'equipment_brand_encoded', 'contract_tier_encoded', 'equipment_type_encoded',
+        'renewal_rate'
     ]
     
     # Convert booleans to int for XGBoost

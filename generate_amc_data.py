@@ -53,6 +53,10 @@ def generate_amc_data(num_rows=1200):
 
         # Renewal history
         previous_renewals = np.random.randint(0, 10)
+        contracts_due_historical = previous_renewals + np.random.randint(0, 4)
+        if contracts_due_historical == 0:
+            contracts_due_historical = 1 # Avoid division by zero
+        renewal_rate = previous_renewals / contracts_due_historical
         
         # Service history (correlated with equipment age)
         base_calls = max(0, equipment_age_years - 2)
@@ -115,6 +119,12 @@ def generate_amc_data(num_rows=1200):
         if contract_tier == 'Premium':
             churn_prob -= 0.05
             
+        # Renewal Rate impact
+        if renewal_rate <= 0.4:
+            churn_prob += 0.15
+        elif renewal_rate >= 0.7:
+            churn_prob -= 0.15
+            
         # Noise
         churn_prob += np.random.uniform(-0.08, 0.08)
         churn_prob = max(0.02, min(0.92, churn_prob))
@@ -171,6 +181,8 @@ def generate_amc_data(num_rows=1200):
             'missed_scheduled_visits': missed_scheduled_visits,
             'repeat_complaints': repeat_complaints,
             'previous_renewals': previous_renewals,
+            'contracts_due_historical': contracts_due_historical,
+            'renewal_rate': renewal_rate,
             'days_to_expiry': days_to_expiry,
             'renewal_reminder_sent': renewal_reminder_sent,
             'last_renewal_delay_days': last_renewal_delay_days,

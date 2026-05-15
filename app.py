@@ -8,55 +8,110 @@ import os
 from google import genai
 
 # --- Page Config ---
-st.set_page_config(page_title="AMC Retention Dashboard", layout="wide", page_icon="🛡️")
+st.set_page_config(page_title="AMC Retention Dashboard", layout="wide")
 
-# --- Custom CRM CSS ---
+# --- Custom Premium UI Styling ---
 st.markdown("""
 <style>
-    /* Professional CRM Theme */
+    /* Import modern Google Font */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
+    html, body, [class*="css"] {
+        font-family: 'Inter', sans-serif !important;
+    }
+    
+    /* Clean up the default Streamlit look (hide hamburger menu and footer) */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+
+    /* Beautiful Metric Cards with hover effects */
     div[data-testid="stMetric"] {
         background-color: #ffffff;
-        border: 1px solid #e0e0e0;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        border-left: 4px solid #0052cc;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 20px 24px;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    div[data-testid="stMetric"]:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 20px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+        border-color: #cbd5e1;
     }
     div[data-testid="stMetricValue"] {
-        color: #172b4d;
-        font-size: 28px;
+        font-size: 32px;
         font-weight: 700;
+        color: #0f172a;
+        letter-spacing: -0.02em;
     }
     div[data-testid="stMetricLabel"] {
-        color: #5e6c84;
-        font-size: 14px;
+        font-size: 15px;
+        color: #64748b;
         font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.05em;
     }
+
+    /* Premium Button Styling */
+    .stButton>button {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 12px 28px;
+        font-weight: 600;
+        font-size: 15px;
+        box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
+        transition: all 0.2s ease;
+    }
+    .stButton>button:hover {
+        background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 12px -1px rgba(37, 99, 235, 0.4);
+        color: white;
+    }
+
+    /* Elegant Tabs */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 30px;
-        border-bottom: 2px solid #ebecf0;
+        gap: 12px;
+        background-color: transparent;
+        border-bottom: 2px solid #e2e8f0;
     }
     .stTabs [data-baseweb="tab"] {
-        height: 50px;
-        white-space: pre-wrap;
         background-color: transparent;
-        border-radius: 4px 4px 0px 0px;
-        gap: 1px;
-        padding: 10px 15px;
-        color: #5e6c84;
+        border-radius: 0;
+        padding: 12px 20px;
         font-weight: 600;
+        font-size: 16px;
+        color: #64748b;
+        border: none;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #f4f5f7;
-        border-bottom: 3px solid #0052cc !important;
-        color: #0052cc;
+        color: #2563eb;
+        border-bottom: 3px solid #2563eb !important;
+        background-color: transparent;
     }
-    .stDataFrame {
-        border-radius: 8px;
-        border: 1px solid #e0e0e0;
+
+    /* Polished Search Bar */
+    .stTextInput input {
+        border-radius: 12px;
+        border: 2px solid #e2e8f0;
+        padding: 14px 20px;
+        font-size: 16px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        transition: all 0.2s ease;
+    }
+    .stTextInput input:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+    }
+
+    /* DataFrame adjustments */
+    [data-testid="stDataFrame"] {
+        border-radius: 12px;
         overflow: hidden;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -71,41 +126,42 @@ def get_intervention(row):
     
     if prob > 0.75:
         if complaints > 0 or missed_visits > 0:
-            return "🔴 Service Escalation: Dispatch Senior Tech today to resolve pending issues. Offer 15% renewal discount."
+            return "Service Escalation: Dispatch Senior Tech today to resolve pending issues. Offer 15% renewal discount."
         elif age >= 8:
-            return "🔴 Upgrade Pitch: Unit is end-of-life. Sales call to pitch new AC installation with free 1-year AMC."
+            return "Upgrade Pitch: Unit is end-of-life. Sales call to pitch new AC installation with free 1-year AMC."
         elif val > 18000:
-            return "🔴 High-Value At-Risk: Area Manager to personally call and schedule free proactive inspection."
+            return "High-Value At-Risk: Area Manager to personally call and schedule free proactive inspection."
         else:
-            return "🔴 Aggressive Retention: SMS & Email campaign offering flat 20% off if renewed within 48 hours."
+            return "Aggressive Retention: SMS & Email campaign offering flat 20% off if renewed within 48 hours."
     elif prob > 0.5:
         if age >= 5:
-            return "🟡 Pre-emptive Checkup: Schedule deep cleaning visit. Pitch 10% discount on multi-year renewal."
+            return "Pre-emptive Checkup: Schedule deep cleaning visit. Pitch 10% discount on multi-year renewal."
         else:
-            return "🟡 personalized outreach: Send detailed service history report showing value delivered + renewal link."
+            return "Personalized Outreach: Send detailed service history report showing value delivered + renewal link."
     elif prob > 0.3:
-        return "🟠 standard nudge: Automated WhatsApp reminder 30 days before expiry."
+        return "Standard Nudge: Automated WhatsApp reminder 30 days before expiry."
     else:
-        return "🟢 auto-renewal flow: Standard Email reminder 15 days before expiry."
+        return "Auto-Renewal Flow: Standard Email reminder 15 days before expiry."
 
 def get_outreach_action(prob):
-    if prob > 0.75: return "📞 Priority Phone Call (Area Manager)"
-    elif prob > 0.5: return "📞 Phone Call (Sales Rep)"
-    elif prob > 0.3: return "💬 WhatsApp Notification"
-    else: return "✉️ Standard Email"
+    if prob > 0.75: return "Priority Phone Call (Area Manager)"
+    elif prob > 0.5: return "Phone Call (Sales Rep)"
+    elif prob > 0.3: return "WhatsApp Notification"
+    else: return "Standard Email"
 
 def get_risk_label(prob):
-    if prob > 0.75: return "🔴 Critical"
-    elif prob > 0.5: return "🟡 High"
-    elif prob > 0.3: return "🟠 Medium"
-    else: return "🟢 Low"
+    if prob > 0.75: return "Critical"
+    elif prob > 0.5: return "High"
+    elif prob > 0.3: return "Medium"
+    else: return "Low"
 
 # --- Gemini Retention Message Generator ---
 def generate_retention_message(customer: dict, channel: str) -> str:
     """Calls Google Gemini to generate a personalized retention outreach message."""
-    api_key = os.environ.get("GEMINI_API_KEY")
+    # Try getting from Streamlit secrets first, then fallback to environment variables
+    api_key = st.secrets.get("GEMINI_API_KEY", os.environ.get("GEMINI_API_KEY"))
     if not api_key:
-        return "ERROR: GEMINI_API_KEY environment variable is not set. Please set it and restart the app."
+        return "ERROR: GEMINI_API_KEY is not set. Please set it in .streamlit/secrets.toml or as an environment variable."
 
     client = genai.Client(api_key=api_key)
 
@@ -133,6 +189,7 @@ Customer Details:
 - Previous Renewals: {customer.get('previous_renewals', 0)}
 - Unresolved Complaints: {int(customer.get('unresolved_complaints', 0))}
 - Missed Scheduled Visits: {int(customer.get('missed_scheduled_visits', 0))}
+- Historical Renewal Rate: {customer.get('renewal_rate', 0):.0%}
 - Churn Risk Score: {customer.get('churn_probability', 0):.0%}
 
 Channel: {channel}
@@ -143,9 +200,10 @@ Rules:
 2. Mention their specific equipment brand and age naturally in the message.
 3. Reference their contract expiry date or days remaining.
 4. If they have unresolved complaints or missed visits, acknowledge and apologize.
-5. Include a soft, non-pushy call to action (e.g., schedule a call, renew online, reply to this message).
-6. Do NOT invent any data not provided above.
-7. Output ONLY the message — no commentary, no notes, no meta-text.
+5. If their historical renewal rate is below 50%, prominently offer a 15% discount or a free priority service visit.
+6. Include a soft, non-pushy call to action (e.g., schedule a call, renew online, reply to this message).
+7. Do NOT invent any data not provided above.
+8. Output ONLY the message — no commentary, no notes, no meta-text.
 """
 
     try:
@@ -160,7 +218,8 @@ Rules:
 # --- Natural Language Query Engine ---
 def nl_to_pandas_filter(query: str) -> str:
     """Sends a plain English query to Gemini and returns a pandas boolean filter expression."""
-    api_key = os.environ.get("GEMINI_API_KEY")
+    # Try getting from Streamlit secrets first, then fallback to environment variables
+    api_key = st.secrets.get("GEMINI_API_KEY", os.environ.get("GEMINI_API_KEY"))
     if not api_key:
         return "ERROR: GEMINI_API_KEY not set."
 
@@ -245,7 +304,7 @@ def apply_nl_filter(df_input: pd.DataFrame, expression: str):
 
 
 # --- Data Loading ---
-@st.cache_data
+@st.cache_data(ttl=3600)  # Added ttl to clear the stale cache and load new columns
 def load_data():
     df = pd.read_csv('processed_amc_data.csv')
     # add season
@@ -276,28 +335,14 @@ df['outreach_action'] = df['churn_probability'].apply(get_outreach_action)
 df['risk_level'] = df['churn_probability'].apply(get_risk_label)
 
 # --- Phase 6: Presentation Framing ---
-st.markdown("""
-<div style='background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%); padding: 25px 30px; border-radius: 12px; margin-bottom: 25px; border-left: 6px solid #ff4b4b; color: #ffffff; box-shadow: 0 4px 6px rgba(0,0,0,0.1);'>
-    <h3 style='margin-top: 0; color: #ffffff; font-weight: 600;'>🔥 The Demo Persona: "Rajesh, HVAC AMC Manager in Nagpur"</h3>
-    <p style='font-size: 16px; line-height: 1.5; margin-bottom: 0;'>
-        Rajesh manages 400+ commercial and residential HVAC contracts. It's Monday morning, one month before peak Indian summer. 
-        Instead of guessing who might cancel their AMC, he opens this dashboard. <strong>In 30 seconds</strong>, he sees exactly which ₹8 Lakhs 
-        are walking out the door, exactly <em>why</em> (e.g., 7-year old Daikin unit with 3 pending complaints), and exactly which technicians 
-        need to be dispatched today to save those contracts.
-    </p>
-</div>
-""", unsafe_allow_html=True)
-
-st.title("🛡️ AMC Retention & Operations Command Center")
+st.title("AMC Retention Dashboard")
 
 # --- Natural Language Search Bar ---
-st.markdown("""<div style='background:#ffffff; border:1px solid #dfe1e6; border-radius:8px; padding:16px 20px; margin-bottom:20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);'>
-    <span style='color:#172b4d; font-weight:600; font-size:15px;'>🧠 AI-Powered Natural Language Search</span>
-    <span style='color:#5e6c84; font-size:13px; margin-left:12px;'>Ask questions about your customer data in plain English</span>
-</div>""", unsafe_allow_html=True)
+st.subheader("Natural Language Search")
+st.caption("Ask questions about your customer data in plain English")
 
 nl_query = st.text_input(
-    "Ask a question",
+    "Search",
     placeholder='e.g. "Show me premium customers in Mumbai with churn risk above 70%"',
     label_visibility="collapsed",
     key="nl_search_bar"
@@ -305,17 +350,17 @@ nl_query = st.text_input(
 
 # Process NL query
 if nl_query:
-    with st.spinner("🧠 Translating your query with Gemini AI..."):
+    with st.spinner("Translating query..."):
         expression = nl_to_pandas_filter(nl_query)
         nl_result, nl_expr, nl_error = apply_nl_filter(df, expression)
 
     if nl_error:
-        st.error(f"❌ {nl_error}")
+        st.error(f"Error: {nl_error}")
         if nl_expr and not nl_expr.startswith("ERROR:"):
             st.caption(f"Generated expression: `{nl_expr}`")
     else:
-        st.caption(f"🔗 Pandas filter: `{nl_expr}`")
-        st.success(f"✅ Found **{len(nl_result)}** matching customers")
+        st.caption(f"Pandas filter: `{nl_expr}`")
+        st.success(f"Found {len(nl_result)} matching customers")
         st.dataframe(
             nl_result[['customer_id', 'customer_name', 'city', 'equipment_brand',
                        'equipment_age_years', 'contract_value_inr', 'contract_tier',
@@ -331,14 +376,13 @@ if nl_query:
 st.markdown("---")
 
 # --- Sidebar Filters ---
-st.sidebar.markdown("## 🔎 Global Filters")
-st.sidebar.markdown("<span style='color:#5e6c84; font-size: 14px;'>Leave empty to select all</span>", unsafe_allow_html=True)
-st.sidebar.markdown("---")
+st.sidebar.header("Global Filters")
+st.sidebar.caption("Leave empty to select all")
 
-selected_city = st.sidebar.multiselect("📍 City", options=sorted(df['city'].unique()))
-selected_brand = st.sidebar.multiselect("🏷️ Equipment Brand", options=sorted(df['equipment_brand'].unique()))
-selected_tier = st.sidebar.multiselect("⭐ Contract Tier", options=sorted(df['contract_tier'].unique()))
-risk_filter = st.sidebar.multiselect("⚠️ Risk Level", options=["🔴 Critical", "🟡 High", "🟠 Medium", "🟢 Low"])
+selected_city = st.sidebar.multiselect("City", options=sorted(df['city'].unique()))
+selected_brand = st.sidebar.multiselect("Equipment Brand", options=sorted(df['equipment_brand'].unique()))
+selected_tier = st.sidebar.multiselect("Contract Tier", options=sorted(df['contract_tier'].unique()))
+risk_filter = st.sidebar.multiselect("Risk Level", options=["Critical", "High", "Medium", "Low"])
 
 # Filter logic
 mask = pd.Series(True, index=df.index)
@@ -350,24 +394,60 @@ if risk_filter: mask = mask & df['risk_level'].isin(risk_filter)
 filtered_df = df[mask].copy()
 
 # --- Tabs ---
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Revenue at Risk", "👥 Explainability", "🔧 Field Ops", "📈 Model Insights", "✉️ Retention Outreach"])
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Revenue at Risk", "Explainability", "Field Ops", "Model Insights", "Retention Outreach", "Renewal Funnel"])
 
 # ---- Tab 1: Overview ----
 with tab1:
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     
     total_contracts = len(filtered_df)
     at_risk = filtered_df[filtered_df['churn_probability'] > 0.5]
     revenue_at_risk = at_risk['contract_value_inr'].sum()
     critical_count = len(filtered_df[filtered_df['churn_probability'] > 0.75])
     
+    # Calculate Real Renewal Rates
+    # Contracts expiring in the last 30 days
+    recent_expired = filtered_df[(filtered_df['days_to_expiry'] < 0) & (filtered_df['days_to_expiry'] >= -30)]
+    recent_renewal_rate = len(recent_expired[recent_expired['churn'] == 0]) / len(recent_expired) if len(recent_expired) > 0 else 0.0
+
+    # Contracts that expired 30 to 60 days ago
+    older_expired = filtered_df[(filtered_df['days_to_expiry'] < -30) & (filtered_df['days_to_expiry'] >= -60)]
+    older_renewal_rate = len(older_expired[older_expired['churn'] == 0]) / len(older_expired) if len(older_expired) > 0 else 0.0
+    
+    delta_rate = recent_renewal_rate - older_renewal_rate
+    
     col1.metric("Contracts in View", f"{total_contracts:,}")
-    col2.metric("💰 Revenue at Risk", f"₹ {revenue_at_risk:,.0f}", help="Sum of contract values for customers with >50% churn probability")
-    col3.metric("🔴 Critical Flight Risks", f"{critical_count}")
+    col2.metric("Revenue at Risk", f"₹ {revenue_at_risk:,.0f}")
+    col3.metric("Critical Flight Risks", f"{critical_count}")
     col4.metric("Avg Equipment Age", f"{filtered_df['equipment_age_years'].mean():.1f} yrs")
     
+    with col5:
+        st.metric("Renewal Rate (Last 30d)", f"{recent_renewal_rate:.0%}", f"{delta_rate:+.1%}")
+        
+        # Build Trend Sparkline
+        spark_df = filtered_df.copy()
+        spark_df['month'] = pd.to_datetime(spark_df['contract_end_date']).dt.to_period('M').astype(str)
+        monthly_rates = spark_df.groupby('month').apply(lambda x: len(x[x['churn']==0])/len(x) if len(x)>0 else 0).reset_index()
+        monthly_rates.columns = ['Month', 'Renewal Rate']
+        monthly_rates = monthly_rates.sort_values('Month').tail(6) # Last 6 months for sparkline
+        
+        sparkline = alt.Chart(monthly_rates).mark_area(
+            color=alt.Gradient(
+                gradient='linear',
+                stops=[alt.GradientStop(color='#3b82f6', offset=0), alt.GradientStop(color='white', offset=1)],
+                x1=1, x2=1, y1=1, y2=0
+            ),
+            line={'color': '#2563eb', 'strokeWidth': 2}
+        ).encode(
+            x=alt.X('Month:N', axis=None),
+            y=alt.Y('Renewal Rate:Q', axis=None, scale=alt.Scale(zero=False)),
+            tooltip=['Month', alt.Tooltip('Renewal Rate:Q', format='.0%')]
+        ).properties(height=60).configure_view(strokeWidth=0)
+        
+        st.altair_chart(sparkline, use_container_width=True)
+    
     st.markdown("---")
-    st.markdown(f"### ⚠️ Losing these {len(at_risk)} high-risk customers = **₹ {revenue_at_risk:,.0f}** in lost revenue. Here's what to do:")
+    st.subheader(f"High-Risk Customers ({len(at_risk)}) - Total Revenue at Risk: ₹ {revenue_at_risk:,.0f}")
     
     display_cols = [
         'customer_id', 'customer_name', 'equipment_brand', 'equipment_age_years', 
@@ -388,7 +468,7 @@ with tab1:
 
 # ---- Tab 2: Customer Deep Dive (SHAP Translation) ----
 with tab2:
-    st.markdown("### 🔍 Trust & Explainability: Why is this customer leaving?")
+    st.subheader("Customer Deep Dive")
     
     customer_options = filtered_df.sort_values('churn_probability', ascending=False)['customer_id'].tolist()
     
@@ -404,13 +484,13 @@ with tab2:
         c3.metric("Unresolved Complaints", f"{int(customer_row['unresolved_complaints'])}")
         c4.metric("Equipment Age", f"{int(customer_row['equipment_age_years'])} yrs")
         
-        st.success(f"**AI Prescribed Action:** {customer_row['intervention']}")
-        st.info(f"**Outreach Channel:** {customer_row['outreach_action']}")
+        st.success(f"Prescribed Action: {customer_row['intervention']}")
+        st.info(f"Outreach Channel: {customer_row['outreach_action']}")
         
         col_left, col_right = st.columns([1, 1])
         
         with col_left:
-            st.markdown("#### 🧠 AI Reasoning (Human Readable)")
+            st.markdown("#### Risk Factors")
             # Generate a text summary based on features
             reasons = []
             if customer_row['unresolved_complaints'] > 0:
@@ -421,7 +501,9 @@ with tab2:
                 reasons.append(f"We missed **{customer_row['missed_scheduled_visits']} scheduled service visits**.")
             if customer_row['is_peak_cooling_season'] and customer_row['days_to_expiry'] < 30:
                 reasons.append("Contract expires right before **peak summer**, highly vulnerable to competitor poaching.")
-            if customer_row['previous_renewals'] == 0:
+            if customer_row['renewal_rate'] < 0.5:
+                reasons.append(f"This customer has renewed only **{customer_row['previous_renewals']} of {customer_row['contracts_due_historical']} times** (Historical Renewal Rate: {customer_row['renewal_rate']:.0%}).")
+            elif customer_row['previous_renewals'] == 0:
                 reasons.append("First-year customer, no established loyalty yet.")
             
             if not reasons:
@@ -431,7 +513,7 @@ with tab2:
                 st.markdown(f"{i+1}. {r}")
                 
         with col_right:
-            st.markdown("#### 📊 Key Churn Drivers (SHAP Impact)")
+            st.markdown("#### Feature Impact (SHAP)")
             X_customer = pd.DataFrame([customer_row[feature_names]])
             for col in feature_names:
                 X_customer[col] = pd.to_numeric(X_customer[col], errors='coerce')
@@ -457,8 +539,8 @@ with tab2:
 
 # ---- Tab 3: Field Ops Planner ----
 with tab3:
-    st.markdown("### 🔧 HVAC Field Technician Workload Balancer")
-    st.markdown("Prioritize physical visits for high-value customers at immediate risk of churn due to service failures.")
+    st.subheader("Field Technician Workload Balancer")
+    st.caption("Prioritize physical visits for high-value customers at immediate risk of churn due to service failures.")
     
     ops_df = filtered_df[
         (filtered_df['churn_probability'] > 0.5) & 
@@ -480,7 +562,7 @@ with tab3:
 
 # ---- Tab 4: Model Insights ----
 with tab4:
-    st.markdown("### 📈 Machine Learning Transparency")
+    st.subheader("Model Insights")
     st.markdown("""
     This system runs on two specialized models:
     1. **XGBoost Classifier**: Imbalanced learning (SMOTE/class weights) to predict binary churn probability.
@@ -503,69 +585,115 @@ with tab4:
 
 # ---- Tab 5: Retention Letter Generator ----
 with tab5:
-    st.markdown("### ✉️ AI-Powered Retention Outreach Generator")
-    st.markdown("Generate personalized retention messages for at-risk customers using **Google Gemini AI**. "
-                "Messages are crafted from each customer's real data — equipment details, contract status, and service history.")
+    st.subheader("Retention Outreach Generator")
+    st.caption("Generate personalized retention messages for at-risk customers using Gemini 2.5 Flash.")
     st.markdown("---")
 
-    ret_customers = filtered_df.sort_values('churn_probability', ascending=False)['customer_id'].tolist()
+    mode = st.radio("Outreach Mode", ["Individual Customer", "Renewal Campaign (Bulk)"], horizontal=True)
 
-    if not ret_customers:
-        st.warning("No customers match the current filters. Adjust the sidebar filters to see customers.")
+    if mode == "Individual Customer":
+        ret_customers = filtered_df.sort_values('churn_probability', ascending=False)['customer_id'].tolist()
+
+        if not ret_customers:
+            st.warning("No customers match the current filters. Adjust the sidebar filters to see customers.")
+        else:
+            col_sel1, col_sel2 = st.columns([2, 1])
+            with col_sel1:
+                ret_selected = st.selectbox("Select Customer", ret_customers, key="ret_customer_select",
+                                            format_func=lambda cid: f"{cid} — {filtered_df[filtered_df['customer_id']==cid].iloc[0]['customer_name']} (Risk: {filtered_df[filtered_df['customer_id']==cid].iloc[0]['churn_probability']:.0%})")
+            with col_sel2:
+                ret_channel = st.selectbox("Outreach Channel", ["WhatsApp", "Email", "Formal Letter"], key="ret_channel_select")
+
+            ret_row = filtered_df[filtered_df['customer_id'] == ret_selected].iloc[0]
+
+            # Show a compact customer summary card
+            st.write("**Customer Profile**")
+            sum_cols = st.columns(4)
+            sum_cols[0].write(f"**Name:** {ret_row['customer_name']}\n\n**City:** {ret_row['city']}")
+            sum_cols[1].write(f"**Brand:** {ret_row['equipment_brand']}\n\n**Age:** {int(ret_row['equipment_age_years'])} yrs")
+            sum_cols[2].write(f"**Contract:** ₹{ret_row['contract_value_inr']:,.0f} ({ret_row['contract_tier']})\n\n**Expiry:** {ret_row['contract_end_date']}")
+            sum_cols[3].write(f"**Risk:** {ret_row['churn_probability']:.0%}\n\n**Renewal Rate:** {ret_row['renewal_rate']:.0%}")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # Generate button
+            if st.button("Generate Message", type="primary", use_container_width=True):
+                with st.spinner(f"Generating {ret_channel} message..."):
+                    message = generate_retention_message(ret_row.to_dict(), ret_channel)
+                    st.session_state['generated_message'] = message
+                    st.session_state['generated_channel'] = ret_channel
+
+            # Display result
+            if 'generated_message' in st.session_state and st.session_state['generated_message']:
+                st.markdown(f"#### Generated {st.session_state.get('generated_channel', '')} Message")
+                st.text_area("Output", value=st.session_state['generated_message'], height=300, key="ret_output_area")
+
     else:
-        col_sel1, col_sel2 = st.columns([2, 1])
-        with col_sel1:
-            ret_selected = st.selectbox("Select Customer", ret_customers, key="ret_customer_select",
-                                        format_func=lambda cid: f"{cid} — {df[df['customer_id']==cid].iloc[0]['customer_name']} (Risk: {df[df['customer_id']==cid].iloc[0]['churn_probability']:.0%})")
-        with col_sel2:
-            ret_channel = st.selectbox("Outreach Channel", ["WhatsApp", "Email", "Formal Letter"], key="ret_channel_select")
+        st.write("#### 🎯 Bulk Renewal Campaign")
+        st.write("Targeting contracts expiring in < 30 days with < 50% historical renewal rate.")
+        target_df = filtered_df[(filtered_df['days_to_expiry'] < 30) & (filtered_df['renewal_rate'] < 0.5)]
+        st.metric("Eligible Customers for Campaign", len(target_df))
+        
+        if len(target_df) > 0:
+            st.dataframe(target_df[['customer_id', 'customer_name', 'renewal_rate', 'days_to_expiry', 'churn_probability']].style.format({'renewal_rate': '{:.0%}', 'churn_probability': '{:.0%}'}))
+            campaign_channel = st.selectbox("Campaign Channel", ["WhatsApp", "Email"], key="camp_chan")
+            if st.button("Generate Campaign Drafts (Top 3 as Demo)", type="primary"):
+                with st.spinner("Generating bulk messages..."):
+                    for _, row in target_df.head(3).iterrows():
+                        msg = generate_retention_message(row.to_dict(), campaign_channel)
+                        st.markdown(f"**To: {row['customer_name']}** (`{row['customer_id']}`)")
+                        st.info(msg)
 
-        ret_row = df[df['customer_id'] == ret_selected].iloc[0]
-
-        # Show a compact customer summary card
-        st.markdown(f"""
-        <div style='background:#f4f5f7; border:1px solid #dfe1e6; border-radius:8px; padding:16px 20px; margin:12px 0;'>
-            <div style='display:flex; gap:40px; flex-wrap:wrap;'>
-                <div><strong style='color:#5e6c84;'>NAME</strong><br>{ret_row['customer_name']}</div>
-                <div><strong style='color:#5e6c84;'>CITY</strong><br>{ret_row['city']}</div>
-                <div><strong style='color:#5e6c84;'>BRAND</strong><br>{ret_row['equipment_brand']}</div>
-                <div><strong style='color:#5e6c84;'>AGE</strong><br>{int(ret_row['equipment_age_years'])} yrs</div>
-                <div><strong style='color:#5e6c84;'>CONTRACT</strong><br>₹{ret_row['contract_value_inr']:,.0f} ({ret_row['contract_tier']})</div>
-                <div><strong style='color:#5e6c84;'>EXPIRY</strong><br>{ret_row['contract_end_date']} ({int(ret_row['days_to_expiry'])}d left)</div>
-                <div><strong style='color:#5e6c84;'>RISK</strong><br>{ret_row['churn_probability']:.0%}</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # Generate button
-        if st.button("🚀 Generate Retention Message", type="primary", use_container_width=True):
-            with st.spinner(f"Generating {ret_channel} message via Gemini AI..."):
-                message = generate_retention_message(ret_row.to_dict(), ret_channel)
-                st.session_state['generated_message'] = message
-                st.session_state['generated_channel'] = ret_channel
-
-        # Display result
-        if 'generated_message' in st.session_state and st.session_state['generated_message']:
-            st.markdown(f"#### Generated {st.session_state.get('generated_channel', '')} Message")
-            st.text_area("Output", value=st.session_state['generated_message'], height=300, key="ret_output_area")
-
-            # Copy button using st.code as fallback + JS clipboard
-            st.markdown(f"""
-            <textarea id="clipboardText" style="position:absolute;left:-9999px;">{st.session_state['generated_message']}</textarea>
-            <button onclick="
-                var t = document.getElementById('clipboardText');
-                t.style.position='static';
-                t.select();
-                document.execCommand('copy');
-                t.style.position='absolute';
-                t.style.left='-9999px';
-                this.innerText='✅ Copied!';
-                setTimeout(()=>this.innerText='📋 Copy to Clipboard', 2000);
-            " style="
-                background:#0052cc; color:white; border:none; padding:10px 24px;
-                border-radius:6px; font-size:14px; font-weight:600; cursor:pointer;
-                margin-top:8px; transition: background 0.2s;
-            " onmouseover="this.style.background='#0065ff'" onmouseout="this.style.background='#0052cc'">
-                📋 Copy to Clipboard
-            </button>
-            """, unsafe_allow_html=True)
+# ---- Tab 6: Renewal Funnel ----
+with tab6:
+    st.subheader("Renewal Pipeline Funnel")
+    st.caption("Conversion metrics for contracts expiring within the next 60 days.")
+    
+    funnel_df = filtered_df[filtered_df['days_to_expiry'] < 60].copy()
+    
+    stage1 = len(funnel_df) # Contracts Due
+    stage2 = len(funnel_df[funnel_df['renewal_reminder_sent'] == 1]) # Contacted
+    stage3 = len(funnel_df[funnel_df['churn'] == 0]) # Renewed
+    stage4 = len(funnel_df[funnel_df['churn'] == 1]) # Churned
+    
+    if stage1 > 0:
+        funnel_data = pd.DataFrame({
+            'Stage': ['1. Contracts Due', '2. Contacted', '3. Renewed', '4. Churned'],
+            'Count': [stage1, stage2, stage3, stage4]
+        })
+        
+        # Altair bar chart as funnel
+        chart = alt.Chart(funnel_data).mark_bar(color='#0f172a').encode(
+            y=alt.Y('Stage:N', sort=None, title=''),
+            x=alt.X('Count:Q', title='Number of Customers'),
+            tooltip=['Stage', 'Count']
+        ).properties(height=250).configure_axis(grid=False).configure_view(strokeWidth=0)
+        
+        st.altair_chart(chart, use_container_width=True)
+    else:
+        st.info("No contracts expiring within the next 60 days matching the current filters.")
+    
+    st.markdown("---")
+    st.subheader("Customer Segmentation by Renewal Rate")
+    
+    def bucket_rate(r):
+        if r <= 0.4: return "0-40% (Low)"
+        elif r <= 0.7: return "40-70% (Medium)"
+        else: return "70-100% (High)"
+        
+    filtered_df['Renewal Segment'] = filtered_df['renewal_rate'].apply(bucket_rate)
+    seg_df = filtered_df.groupby('Renewal Segment').agg(
+        Customers=('customer_id', 'count'),
+        Avg_Churn_Risk=('churn_probability', 'mean')
+    ).reset_index()
+    
+    col_s1, col_s2 = st.columns([1, 2])
+    with col_s1:
+        st.dataframe(seg_df.style.format({'Avg_Churn_Risk': '{:.1%}'}), hide_index=True)
+    with col_s2:
+        seg_chart = alt.Chart(seg_df).mark_bar(color='#2563eb').encode(
+            x='Renewal Segment:N',
+            y=alt.Y('Avg_Churn_Risk:Q', axis=alt.Axis(format='%')),
+            tooltip=['Renewal Segment', alt.Tooltip('Avg_Churn_Risk:Q', format='.1%')]
+        ).properties(height=200)
+        st.altair_chart(seg_chart, use_container_width=True)
